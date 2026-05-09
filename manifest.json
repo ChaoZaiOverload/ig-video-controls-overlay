@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Instagram Video Controls",
   "version": "1.0.0",
-  "description": "YouTube-style keyboard controls for Instagram videos. J = -10s, K = play/pause, L = +10s.",
+  "description": "Adds a hover overlay to Instagram videos with seek buttons, a draggable progress bar, and keyboard shortcuts (J / K / L) to skip back, play/pause, and skip forward.",
   "icons": {
     "128": "icon128.png"
   },
