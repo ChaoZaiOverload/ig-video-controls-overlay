@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Instagram Video Controls",
+  "version": "1.0.0",
+  "description": "YouTube-style keyboard controls for Instagram videos. J = -10s, K = play/pause, L = +10s.",
+  "permissions": [],
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
