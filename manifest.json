@@ -3,6 +3,12 @@
   "name": "Instagram Video Controls",
   "version": "1.0.0",
   "description": "YouTube-style keyboard controls for Instagram videos. J = -10s, K = play/pause, L = +10s.",
+  "icons": {
+    "128": "icon128.png"
+  },
+  "action": {
+    "default_icon": "icon128.png"
+  },
   "permissions": [],
   "content_scripts": [
     {
