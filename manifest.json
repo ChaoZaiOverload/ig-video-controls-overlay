@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Instagram Video Controls",
   "version": "1.0.0",
-  "description": "Adds a hover overlay to Instagram videos with seek buttons, a draggable progress bar, and keyboard shortcuts (J / K / L) to skip back, play/pause, and skip forward.",
+  "description": "Hover overlay for Instagram videos: seek buttons, draggable progress bar, and J / K / L keyboard shortcuts to skip and play/pause.",
   "icons": {
     "128": "icon128.png"
   },
