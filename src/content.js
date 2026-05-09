@@ -27,8 +27,6 @@ style.textContent = `
         flex:1; display:flex; align-items:center; justify-content:center; gap:14px;
         pointer-events:none;
     }
-    .ig-video-overlay.visible .ig-btn { pointer-events:auto; }
-    .ig-video-overlay.visible .ig-progress-section { pointer-events:auto; }
     .ig-btn {
         background:rgba(0,0,0,0.58); color:#fff; border:none; border-radius:50%;
         cursor:pointer; display:flex; align-items:center; justify-content:center;
@@ -63,6 +61,8 @@ style.textContent = `
         opacity:0; transition:opacity 0.12s; pointer-events:none;
     }
     .ig-progress-track:hover .ig-progress-handle { opacity:1; }
+    .ig-video-overlay.visible .ig-btn { pointer-events:auto; }
+    .ig-video-overlay.visible .ig-progress-section { pointer-events:auto; }
 `;
 document.head.appendChild(style);
 
@@ -91,8 +91,6 @@ function showNudge(video, text) {
     setTimeout(() => nudge.remove(), 700);
 }
 
-// --- Active video (for keyboard shortcuts) ---
-
 function getActiveVideo() {
     const videos = [...document.querySelectorAll('video')];
     if (!videos.length) return null;
@@ -109,9 +107,19 @@ function getActiveVideo() {
     return best;
 }
 
-// --- Overlay per video ---
-// Map<video, { overlay, isDragging, rafId, hideTimer }>
+// --- Per-video state ---
+// Map<HTMLVideoElement, { overlay, rafId, hideTimer, isDragging, io }>
 const videoMap = new Map();
+
+function cleanupVideo(video) {
+    const state = videoMap.get(video);
+    if (!state) return;
+    if (state.rafId)    { cancelAnimationFrame(state.rafId); }
+    if (state.hideTimer){ clearTimeout(state.hideTimer); }
+    if (state.io)       { state.io.disconnect(); }
+    state.overlay.remove();
+    videoMap.delete(video);
+}
 
 function injectOverlay(video) {
     if (videoMap.has(video)) return;
@@ -120,10 +128,10 @@ function injectOverlay(video) {
     overlay.className = 'ig-video-overlay';
     document.body.appendChild(overlay);
 
-    const state = { overlay, isDragging: false, rafId: null, hideTimer: null };
+    const state = { overlay, rafId: null, hideTimer: null, isDragging: false, io: null };
     videoMap.set(video, state);
 
-    // Button row
+    // --- Buttons ---
     const btnRow    = document.createElement('div');
     btnRow.className = 'ig-btn-row';
     const btnBack   = makeBtn('ig-btn ig-btn-seek',  '−10', `J — back ${SEEK_SECONDS}s`);
@@ -151,10 +159,10 @@ function injectOverlay(video) {
     });
     btnRow.append(btnBack, btnToggle, btnFwd);
 
-    // Progress bar
+    // --- Progress bar ---
     const progressSection = document.createElement('div');
     progressSection.className = 'ig-progress-section';
-    const timeEl = document.createElement('div');
+    const timeEl = document.createElement('span');
     timeEl.className = 'ig-time';
     timeEl.textContent = '0:00 / 0:00';
     const track  = document.createElement('div');
@@ -167,18 +175,24 @@ function injectOverlay(video) {
     progressSection.append(timeEl, track);
     overlay.append(btnRow, progressSection);
 
-    // Progress sync
+    const resetProgress = () => {
+        fill.style.width  = '0%';
+        handle.style.left = '0%';
+        timeEl.textContent = '0:00 / 0:00';
+    };
     const updateProgress = () => {
         const pct = video.duration ? (video.currentTime / video.duration * 100).toFixed(2) + '%' : '0%';
-        fill.style.width  = pct;
-        handle.style.left = pct;
+        fill.style.width   = pct;
+        handle.style.left  = pct;
         timeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
     };
-    video.addEventListener('timeupdate',     updateProgress);
+    // emptied fires when Instagram loads a new video into the same element (e.g. next reel)
+    video.addEventListener('emptied',        resetProgress);
     video.addEventListener('loadedmetadata', updateProgress);
+    video.addEventListener('timeupdate',     updateProgress);
     updateProgress();
 
-    // Drag-to-seek
+    // --- Drag to seek ---
     track.addEventListener('mousedown', e => {
         e.stopPropagation(); e.preventDefault();
         state.isDragging = true;
@@ -192,7 +206,7 @@ function injectOverlay(video) {
     });
     document.addEventListener('mouseup', () => { state.isDragging = false; });
 
-    // Position sync via rAF (only while visible)
+    // --- Position sync via rAF (only while overlay is visible) ---
     const syncPosition = () => {
         const r = video.getBoundingClientRect();
         overlay.style.top    = r.top    + 'px';
@@ -203,7 +217,7 @@ function injectOverlay(video) {
     const startSync = () => {
         if (state.rafId) return;
         const loop = () => {
-            if (!document.contains(video)) { overlay.remove(); videoMap.delete(video); return; }
+            if (!document.contains(video)) { cleanupVideo(video); return; }
             syncPosition();
             state.rafId = requestAnimationFrame(loop);
         };
@@ -225,19 +239,23 @@ function injectOverlay(video) {
         }, 1200);
     };
 
-    console.log(TAG, `injected overlay for video ${video.src?.slice(0, 60) || '(no src)'}, size ${video.videoWidth}x${video.videoHeight}`);
+    // --- IntersectionObserver: stop sync when video scrolls out of view ---
+    state.io = new IntersectionObserver(entries => {
+        if (!entries[0].isIntersecting) {
+            overlay.classList.remove('visible');
+            stopSync();
+        }
+    }, { threshold: 0.1 });
+    state.io.observe(video);
 }
 
-// --- Global mousemove: show/hide based on cursor position over video rect ---
-// Avoids relying on pointer-events on Instagram's video element
-
+// --- Global mousemove: show/hide based on cursor position (works even with pointer-events:none on video) ---
 document.addEventListener('mousemove', e => {
     for (const [video, state] of videoMap) {
         const r = video.getBoundingClientRect();
         const overVideo = r.width > 0 && r.height > 0
             && e.clientX >= r.left && e.clientX <= r.right
             && e.clientY >= r.top  && e.clientY <= r.bottom;
-
         const or = state.overlay.getBoundingClientRect();
         const overOverlay = e.clientX >= or.left && e.clientX <= or.right
                          && e.clientY >= or.top  && e.clientY <= or.bottom;
@@ -252,7 +270,6 @@ document.addEventListener('mousemove', e => {
 });
 
 // --- Keyboard shortcuts ---
-
 document.addEventListener('keydown', e => {
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
@@ -277,25 +294,30 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
 }, true);
 
-// --- Scan for videos (initial + periodic fallback + MutationObserver) ---
-
+// --- Video discovery ---
 function scanVideos() {
-    const before = videoMap.size;
     document.querySelectorAll('video').forEach(injectOverlay);
-    if (videoMap.size !== before)
-        console.log(TAG, `now tracking ${videoMap.size} video(s)`);
 }
 
-new MutationObserver(mutations => {
-    for (const m of mutations)
+const domObserver = new MutationObserver(mutations => {
+    for (const m of mutations) {
         for (const node of m.addedNodes) {
             if (node.nodeType !== 1) continue;
             if (node.tagName === 'VIDEO') injectOverlay(node);
             node.querySelectorAll?.('video').forEach(injectOverlay);
         }
-}).observe(document.body, { childList: true, subtree: true });
+        // Clean up overlays for removed videos (with a short delay to ignore React's
+        // temporary remove-then-reinsert during reconciliation)
+        for (const node of m.removedNodes) {
+            if (node.nodeType !== 1) continue;
+            const check = v => setTimeout(() => { if (!document.contains(v)) cleanupVideo(v); }, 500);
+            if (node.tagName === 'VIDEO') check(node);
+            node.querySelectorAll?.('video').forEach(check);
+        }
+    }
+});
+domObserver.observe(document.body, { childList: true, subtree: true });
 
 scanVideos();
-setInterval(scanVideos, 2000); // fallback for late-loading videos
-
-console.log(TAG, '✅ active — check console for "injected overlay" messages');
+setInterval(scanVideos, 2000); // fallback for videos that slip past MutationObserver
+console.log(TAG, '✅ active');
