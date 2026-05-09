@@ -22,10 +22,13 @@ style.textContent = `
         display:flex; flex-direction:column;
         opacity:0; transition:opacity 0.18s;
     }
-    .ig-video-overlay.visible { opacity:1; pointer-events:auto; }
+    .ig-video-overlay.visible { opacity:1; }
     .ig-btn-row {
         flex:1; display:flex; align-items:center; justify-content:center; gap:14px;
+        pointer-events:none;
     }
+    .ig-video-overlay.visible .ig-btn-row,
+    .ig-video-overlay.visible .ig-progress-section { pointer-events:auto; }
     .ig-btn {
         background:rgba(0,0,0,0.58); color:#fff; border:none; border-radius:50%;
         cursor:pointer; display:flex; align-items:center; justify-content:center;
