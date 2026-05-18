@@ -49,7 +49,7 @@ style.textContent = `
     .ig-progress-track {
         flex:1; height:4px; background:rgba(255,255,255,0.35);
         border-radius:2px; cursor:pointer; position:relative;
-        transition:height 0.12s;
+        transition:height 0.12s; margin-right:42px;
     }
     .ig-progress-track:hover { height:6px; }
     .ig-progress-fill {
@@ -62,7 +62,7 @@ style.textContent = `
     }
     .ig-progress-track:hover .ig-progress-handle { opacity:1; }
     .ig-video-overlay.visible .ig-btn { pointer-events:auto; }
-    .ig-video-overlay.visible .ig-progress-section { pointer-events:auto; }
+    .ig-video-overlay.visible .ig-progress-track { pointer-events:auto; }
 `;
 document.head.appendChild(style);
 

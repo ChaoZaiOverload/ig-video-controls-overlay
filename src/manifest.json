@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Instagram Video Controls",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Hover overlay for Instagram videos: seek buttons, draggable progress bar, and J / K / L keyboard shortcuts to skip and play/pause.",
   "icons": {
     "16": "icon16.png",
